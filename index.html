@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mind Map</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        /* Reset default margin and padding */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Body styles */
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    height: 100vh;
+    flex-direction: row;
+    background-color: #f4f7fc;
+}
+
+/* Header styles */
+#header {
+    background-color: #4A90E2;
+    color: white;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+#header h3 {
+    font-size: 1.8rem;
+}
+
+/* Main container with two columns */
+#main {
+    display: flex;
+    flex: 1;
+    height: calc(100vh - 60px); /* Subtract header height */
+}
+
+/* Network area takes the rest of the space */
+#network {
+    flex: 1;
+    background-color: #ffffff;
+    border-right: 1px solid #ddd;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Sidebar styles */
+#sidebar {
+    width: 300px; /* Fixed width for the sidebar */
+    background-color: #ffffff;
+    padding: 20px;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+}
+
+/* Controls styling */
+#controls {
+    margin-bottom: 20px;
+}
+
+#controls label {
+    font-size: 1rem;
+    display: block;
+    margin-bottom: 10px;
+}
+
+#controls input[type="file"] {
+    width: 100%;
+    padding: 10px;
+    font-size: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+/* Node details section */
+#details {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#details h2 {
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+}
+
+#details p {
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+/* Key section for the color legend */
+#key {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#key h3 {
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+}
+
+.key-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.color-box {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    border: 1px solid #ddd;
+}
+
+    </style>
+</head>
+<body>
+
+    <div id="main">
+
+                <div id="network"></div>
+        <div id="sidebar">
+            <div id="controls">
+                <input type="file" id="fileInput">
+            <label>
+                <input type="checkbox" id="includeSingleNodes" checked>
+                Include Single Nodes
+            </label>
+        </div>
+            <div id="details">Click on a person to view details.</div>
+            <div id="key"></div>
+        </div>
+    </div>
+
+ <script>
+        let data = [];
+        let colorMap = {}; // Store colors for each header
+
+        // Function to load CSV file and parse it
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+
+            if (file && file.type === 'text/csv') {
+                Papa.parse(file, {
+                    complete: function (result) {
+                        data = result.data;
+                        if (data.length > 0) {
+                            processData(data);
+                        } else {
+                            alert('CSV is empty or malformed.');
+                        }
+                    },
+                    header: true
+                });
+            } else {
+                alert('Please upload a valid CSV file.');
+            }
+        }
+
+        document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+
+        // Generate a random color
+        function getRandomColor() {
+            const letters = '0123456789ABCDEF';
+            let color = '#';
+            for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+
+let includeSingleNodes = true; // Default state for including single nodes
+
+document.getElementById('includeSingleNodes').addEventListener('change', (e) => {
+    includeSingleNodes = e.target.checked;
+    processData(currentData); // Reprocess the current data when the toggle changes
+});
+
+let currentData = null; // To store the loaded CSV data
+
+function processData(data) {
+    currentData = data; // Save data for reprocessing
+    const headers = Object.keys(data[0]); // Get headers dynamically
+
+    // Assign random colors to each header
+    headers.forEach(header => {
+        if (header !== 'name') {
+            colorMap[header] = getRandomColor();
+        }
+    });
+
+    const nodes = [];
+    const edges = [];
+    const edgeMap = {};
+    const nodeData = {};
+    const uniqueNodes = new Set();
+    const nodeConnections = {};
+
+    // Create nodes for the 'name' column
+    data.forEach(person => {
+        const name = person['name'];
+        if (name && !uniqueNodes.has(name)) {
+            nodes.push({
+                id: name,
+                label: name,
+                group: 'person',
+                color: '#97C2FC'
+            });
+            nodeData[name] = person;
+            uniqueNodes.add(name);
+            nodeConnections[name] = 0;
+        }
+    });
+
+    // Create edges and additional nodes for relationships
+    data.forEach(person => {
+        const name = person['name'];
+
+        headers.forEach(header => {
+            if (header !== 'name' && person[header]) {
+                const connectionId = person[header];
+                nodeConnections[name] = (nodeConnections[name] || 0) + 1;
+                nodeConnections[connectionId] = (nodeConnections[connectionId] || 0) + 1;
+
+                if (!uniqueNodes.has(connectionId)) {
+                    nodes.push({
+                        id: connectionId,
+                        label: connectionId,
+                        group: header,
+                        color: colorMap[header]
+                    });
+                    uniqueNodes.add(connectionId);
+                }
+
+                const edgeKey = `${name}->${connectionId}`;
+                const reverseEdgeKey = `${connectionId}->${name}`;
+
+                if (edgeMap[reverseEdgeKey]) {
+                    const existingEdge = edges.find(e => e.from === connectionId && e.to === name);
+                    if (existingEdge) {
+                        existingEdge.width = 3;
+                    }
+                } else if (!edgeMap[edgeKey]) {
+                    edges.push({
+                        from: name,
+                        to: connectionId,
+                        color: { color: colorMap[header] },
+                        width: 1
+                    });
+                    edgeMap[edgeKey] = true;
+                }
+            }
+        });
+    });
+
+    // Filter nodes and edges based on the toggle
+    const filteredNodes = includeSingleNodes
+        ? nodes
+        : nodes.filter(node => nodeConnections[node.id] > 1);
+    const filteredNodeIds = new Set(filteredNodes.map(node => node.id));
+    const filteredEdges = edges.filter(edge => filteredNodeIds.has(edge.from) && filteredNodeIds.has(edge.to));
+
+    // Initialize the network
+    const container = document.getElementById('network');
+    const networkData = {
+        nodes: new vis.DataSet(filteredNodes),
+        edges: new vis.DataSet(filteredEdges)
+    };
+    const options = {
+        physics: {
+            stabilization: false,
+            barnesHut: { gravitationalConstant: -3000 }
+        }
+    };
+    const network = new vis.Network(container, networkData, options);
+
+    // Handle node click events
+    const sidebar = document.getElementById("details");
+   network.on("click", function (params) {
+    if (params.nodes.length > 0) {
+        const nodeId = params.nodes[0];
+        const personData = nodeData[nodeId];
+
+        if (personData) {
+            let content = `<strong>${personData.name}</strong><br>`;
+            headers.forEach(header => {
+                if (header !== 'name' && personData[header]) {
+                    content += `${header.charAt(0).toUpperCase() + header.slice(1)}: ${personData[header]}<br>`;
+                }
+            });
+            sidebar.innerHTML = content;
+        } else {
+            // If it's not a person node, show the connected people
+            let connectedPersons = [];
+            edges.forEach(edge => {
+                if (edge.from === nodeId || edge.to === nodeId) {
+                    const connectedNodeId = edge.from === nodeId ? edge.to : edge.from;
+                    if (nodeData[connectedNodeId]) {
+                        connectedPersons.push(nodeData[connectedNodeId].name);
+                    }
+                }
+            });
+            if (connectedPersons.length > 0) {
+                sidebar.innerHTML = `<strong>${nodeId}:</strong><br>${connectedPersons.join('<br>')}`;
+            } else {
+                sidebar.innerHTML = "No persons connected.";
+            }
+        }
+    } else {
+        sidebar.innerHTML = "Click on a person to view details.";
+    }
+});
+
+    // Generate the key dynamically
+    const keySection = document.getElementById("key");
+    keySection.innerHTML = ''; // Clear existing key
+    headers.forEach(header => {
+        if (header !== 'name') {
+            const colorBox = document.createElement('div');
+            colorBox.classList.add('key-item');
+            colorBox.innerHTML = `
+                <div class="color-box" style="background-color: ${colorMap[header]}"></div>
+                <span>${header.charAt(0).toUpperCase() + header.slice(1)}</span>`;
+            keySection.appendChild(colorBox);
+        }
+    });
+}
+</script>
+
+</body>
+</html>
