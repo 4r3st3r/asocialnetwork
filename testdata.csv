@@ -1,0 +1,11 @@
+name,job,city,school,university,partner,football team
+John Doe,Software Engineer,New York,Lincoln High,MIT,Jane Doe,New York FC
+Alice Smith,Doctor,London,St. Paul's School,Oxford,Bob Brown,Arsenal
+Bob Brown,Teacher,Manchester,Greenwood High,Manchester University,Alice Smith,Manchester United
+Charlie Johnson,Artist,Berlin,Art School,University of Berlin,Danielle Green,Hertha BSC
+Danielle Green,Chef,Paris,Lycée Louis-le-Grand,Sorbonne,Charlie Johnson,Paris Saint-Germain
+Eva White,Engineer,Sydney,North Shore High,University of Sydney,George Black,Sydney FC
+George Black,Designer,Los Angeles,Westwood High,UCLA,Eva White,LA Galaxy
+Hannah Adams,Writer,Chicago,Chicago Central University of Chicago,Duke University,Isaac Blue,Chicago Fire
+Isaac Blue,Musician,San Francisco,Oakwood High,Stanford,Emily Red,San Jose Earthquakes
+Emily Red,Lawyer,Los Angeles,Hamilton High,Harvard,Isaac Blue,LA Galaxy
